@@ -1,8 +1,6 @@
 name: Build Video and Publish Raw URL
 
 on:
-  schedule:
-    - cron: '0 */3 * * *'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +38,17 @@ jobs:
           test -f output.mp4 || (echo "output.mp4 not found" && exit 1)
           ls -lh output.mp4
 
+      - name: Verify video type exists
+        run: |
+          test -f video_type.txt || (echo "video_type.txt not found" && exit 1)
+          cat video_type.txt
+
+      - name: Read video type
+        id: type
+        run: |
+          TYPE=$(cat video_type.txt | tr -d '\r\n')
+          echo "type=$TYPE" >> "$GITHUB_OUTPUT"
+
       - name: Publish latest.mp4 to generated branch
         run: |
           set -e
@@ -63,7 +72,7 @@ jobs:
         env:
           MAKE_WEBHOOK_URL: ${{ secrets.MAKE_WEBHOOK_URL }}
         run: |
-          RAW_URL="https://raw.githubusercontent.com/${{ github.repository }}/generated/latest.mp4"
+          RAW_URL="https://raw.githubusercontent.com/${{ github.repository }}/generated/latest.mp4?v=${{ github.run_id }}"
 
           curl --fail --location \
             -X POST "$MAKE_WEBHOOK_URL" \
@@ -71,6 +80,7 @@ jobs:
             -d "$(jq -n \
               --arg file_url "$RAW_URL" \
               --arg file_name "latest.mp4" \
+              --arg video_type "${{ steps.type.outputs.type }}" \
               --arg source "github-actions" \
               --arg workflow "${{ github.workflow }}" \
               --arg run_id "${{ github.run_id }}" \
@@ -78,6 +88,7 @@ jobs:
               '{
                 file_url: $file_url,
                 file_name: $file_name,
+                video_type: $video_type,
                 source: $source,
                 workflow: $workflow,
                 run_id: $run_id,
@@ -89,4 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: final-video-debug
-          path: output.mp4
+          path: |
+            output.mp4
+            video_type.txt
+            selected_files.txt

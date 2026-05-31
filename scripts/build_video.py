@@ -32,7 +32,7 @@ def get_videos(folder: Path) -> list[Path]:
 
 
 def choose_video_type() -> str:
-    return random.choices("sales")
+    return "sales"
 
 
 def get_video_folder(video_type: str) -> Path:
